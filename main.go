@@ -66,15 +66,21 @@ func UpdateStatistic(msg *tgbotapi.Message, client *mongo.Client){
 func PrintStatistic(chatId int64, client *mongo.Client){
   collectionStatistic := client.Database("test").Collection("statistic")
   filter := bson.D{{"chat_id", chatId}}
-  var result bson.M
 
+  var results []bson.M
   fmt.Println(filter)
-  err := collectionStatistic.FindOne(context.TODO(), filter).Decode(&result)
+  cursor, err := collectionStatistic.Find(context.TODO(), filter)
   if err != nil {
     log.Fatal(err)
   }
 
-  fmt.Printf("Found a single document: %+v\n", result)
+  if err = cursor.All(context.TODO(), &results); err != nil {
+    log.Fatal(err)
+  }
+
+  for _, result := range results {
+    fmt.Println(result)
+  }
 }
 
 func bot(){
