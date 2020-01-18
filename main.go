@@ -63,6 +63,20 @@ func UpdateStatistic(msg *tgbotapi.Message, client *mongo.Client){
 
 }
 
+func PrintStatistic(chatId int64, client *mongo.Client){
+  collectionStatistic := client.Database("test").Collection("statistic")
+  filter := bson.D{{"chat_id", chatId}}
+  var result bson.M
+
+  fmt.Println(filter)
+  err := collectionStatistic.FindOne(context.TODO(), filter).Decode(&result)
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Printf("Found a single document: %+v\n", result)
+}
+
 func bot(){
     bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_APITOKEN"))
     if err != nil {
@@ -85,6 +99,7 @@ func bot(){
 
     ConnectDB(client)
 
+    // цикл обработки сообщений
     for update := range updates {
 
       if update.Message == nil { // ignore any non-Message Updates
@@ -92,6 +107,9 @@ func bot(){
       }
 
       if strings.Contains(update.Message.Text, "@KangBongSungBot") {
+        if strings.Contains(update.Message.Text, "стат"){
+	  PrintStatistic(update.Message.Chat.ID, client)
+	}
         if update.Message.From.ID == 533587790 {
           msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Моя Настенька! 🤗")
           msg.ReplyToMessageID = update.Message.MessageID
