@@ -5,12 +5,47 @@ import (
 	"os"
 	"fmt"
 	"context"
+	"strings"
 
         "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
+
+func UpdateStatistic(msg *tgbotapi.Message, client *mongo.Client){
+    collectionUsers := client.Database("test").Collection("users")
+    collectionChats := client.Database("test").Collection("chats")
+    collectionStatistic := client.Database("test").Collection("statistic")
+
+    user := msg.From
+    opts := options.Update().SetUpsert(true)        //insert if doc not exist
+
+    filter := bson.D{{"id", user.ID}}
+    newitem := bson.D{{"$set", user}}
+    _, err := collectionUsers.UpdateOne(context.TODO(), filter, newitem, opts)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    filter = bson.D{{"id", msg.Chat.ID}}
+    newitem = bson.D{{"$set", msg.Chat}}
+    _, err = collectionChats.UpdateOne(context.TODO(), filter, newitem, opts)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    filter = bson.D{{"chat_id", msg.Chat.ID}, {"user_id", msg.From.ID}}
+    newitem = bson.D{
+                      {"$set", bson.D{{"chat_id", msg.Chat.ID}, {"user_id", msg.From.ID}}},
+                      {"$inc", bson.D{{"count", 1}}},
+                    }
+    _, err = collectionStatistic.UpdateOne(context.TODO(), filter, newitem, opts)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+}
 
 func bot(){
     bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_APITOKEN"))
@@ -46,7 +81,6 @@ func bot(){
     }
 
     fmt.Println("Connected to MongoDB!")
-    collection := client.Database("test").Collection("chats")
 
         for update := range updates {
 
@@ -54,24 +88,19 @@ func bot(){
                         continue
                 }
 
-                msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-                msg.ReplyToMessageID = update.Message.MessageID
-                fmt.Println(update.Message.Text)
-		user := update.Message.From
-		opts := options.Update().SetUpsert(true)
-		filter := bson.D{{"id", user.ID}}
-		newitem := bson.D{{"$set", user, }}
-		updateResult, err := collection.UpdateOne(context.TODO(), filter, newitem, opts)
-                if err != nil {
-                  log.Fatal(err)
-                }
+                if strings.Contains(update.Message.Text, "@KangBongSungBot") {
+		  if update.Message.From.ID == 533587790 {
+		    msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Моя Настенька! 🤗")
+		    msg.ReplyToMessageID = update.Message.MessageID
 
-		fmt.Printf("Matched %v documents and updated %v documents.\n", updateResult.MatchedCount, updateResult.ModifiedCount)
-		fmt.Printf("%d --- %s\n", user.ID, user.FirstName)
+		    bot.Send(msg)
+		  }
+		}
 
-                if _, err := bot.Send(msg); err != nil {
-                        log.Panic(err)
-                }
+		UpdateStatistic(update.Message, client)
+
+		fmt.Printf("%d --- %s --- %d: %s\n", update.Message.From.ID, update.Message.From.FirstName, update.Message.Chat.ID, update.Message.Text)
+
         }
 }
 
@@ -80,7 +109,7 @@ func main() {
   keyword := ""
   fmt.Println("type exit to quit")
   for keyword != "exit" {
-    fmt.Scan(&keyword) 
+    fmt.Scan(&keyword)
   }
 }
 
