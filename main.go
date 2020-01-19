@@ -64,22 +64,30 @@ func UpdateStatistic(msg *tgbotapi.Message, client *mongo.Client){
 }
 
 func PrintStatistic(chatId int64, client *mongo.Client){
-  collectionStatistic := client.Database("test").Collection("statistic")
-  filter := bson.D{{"chat_id", chatId}}
+    type UserStat struct {
+      user_id  int
+      chat_id  int64
+      count   int
+    }
 
-  var results []bson.M
-  fmt.Println(filter)
-  cursor, err := collectionStatistic.Find(context.TODO(), filter)
+  collectionStatistic := client.Database("test").Collection("statistic")
+  Stage1 := bson.D{{"$match", bson.D{{"chat_id", chatId}} }}
+  Stage2 := bson.D{{"$lookup", bson.D{{"from", "users"}, {"localField", "user_id"}, {"foreignField", "id"}, {"as", "stata"}}}}
+
+  cursor, err := collectionStatistic.Aggregate(context.TODO(), mongo.Pipeline{Stage1, Stage2})
   if err != nil {
     log.Fatal(err)
   }
 
-  if err = cursor.All(context.TODO(), &results); err != nil {
-    log.Fatal(err)
-  }
+  for cursor.Next(context.TODO()) {
+    var elem bson.M
+    err := cursor.Decode(&elem)
+    if err != nil {
+      log.Fatal(err)
+    }
 
-  for _, result := range results {
-    fmt.Println(result)
+    fmt.Println(elem)
+
   }
 }
 
