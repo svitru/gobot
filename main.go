@@ -79,14 +79,18 @@ func PrintStatistic(chatId int64, client *mongo.Client){
     log.Fatal(err)
   }
 
-  for cursor.Next(context.TODO()) {
-    var elem bson.M
-    err := cursor.Decode(&elem)
-    if err != nil {
-      log.Fatal(err)
-    }
+  var itemBson bson.M
+  var itemMap map[string]interface{}
 
-    fmt.Println(elem)
+  for cursor.Next(context.TODO()) {
+    cursor.Decode(&itemBson)
+
+    itemS := itemBson["stata"].(bson.A)[0]
+    b, _ := bson.Marshal(itemS)
+    bson.Unmarshal(b, &itemMap)
+
+    fmt.Printf("%v %v %v  --- %d\n", itemMap["firstname"], itemMap["username"], itemMap["lastname"], itemBson["count"])
+
 
   }
 }
