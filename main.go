@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"context"
 	"strings"
+	"strconv"
 
         "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
@@ -63,24 +64,22 @@ func UpdateStatistic(msg *tgbotapi.Message, client *mongo.Client){
 
 }
 
-func PrintStatistic(chatId int64, client *mongo.Client){
-    type UserStat struct {
-      user_id  int
-      chat_id  int64
-      count   int
-    }
+func PrintStatistic(bot *tgbotapi.BotAPI, chatId int64, client *mongo.Client){
 
   collectionStatistic := client.Database("test").Collection("statistic")
   Stage1 := bson.D{{"$match", bson.D{{"chat_id", chatId}} }}
-  Stage2 := bson.D{{"$lookup", bson.D{{"from", "users"}, {"localField", "user_id"}, {"foreignField", "id"}, {"as", "stata"}}}}
+  Stage2 := bson.D{{"$sort", bson.D{{"count", -1}} }}
+  Stage3 := bson.D{{"$lookup", bson.D{{"from", "users"}, {"localField", "user_id"}, {"foreignField", "id"}, {"as", "stata"}}}}
 
-  cursor, err := collectionStatistic.Aggregate(context.TODO(), mongo.Pipeline{Stage1, Stage2})
+  cursor, err := collectionStatistic.Aggregate(context.TODO(), mongo.Pipeline{Stage1, Stage2, Stage3})
   if err != nil {
     log.Fatal(err)
   }
 
   var itemBson bson.M
   var itemMap map[string]interface{}
+
+  answer := ""
 
   for cursor.Next(context.TODO()) {
     cursor.Decode(&itemBson)
@@ -90,9 +89,19 @@ func PrintStatistic(chatId int64, client *mongo.Client){
     bson.Unmarshal(b, &itemMap)
 
     fmt.Printf("%v %v %v  --- %d\n", itemMap["firstname"], itemMap["username"], itemMap["lastname"], itemBson["count"])
+    answer += itemMap["firstname"].(string)
+    if len(itemMap["username"].(string)) > 0 {answer += " " + itemMap["username"].(string)}
+    if len(itemMap["lastname"].(string)) > 0 {answer += " " + itemMap["lastname"].(string)}
+    answer += " " + strconv.Itoa(int(itemBson["count"].(int32))) + "\n"
+    fmt.Printf("%d %d %d\n", len(itemMap["firstname"].(string)), len(itemMap["username"].(string)), len(itemMap["lastname"].(string)))
 
 
   }
+
+  fmt.Println(answer)
+  msg := tgbotapi.NewMessage(chatId, answer)
+  bot.Send(msg)
+
 }
 
 func bot(){
@@ -126,7 +135,7 @@ func bot(){
 
       if strings.Contains(update.Message.Text, "@KangBongSungBot") {
         if strings.Contains(update.Message.Text, "стат"){
-	  PrintStatistic(update.Message.Chat.ID, client)
+	  PrintStatistic(bot, update.Message.Chat.ID, client)
 	}
         if update.Message.From.ID == 533587790 {
           msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Моя Настенька! 🤗")
