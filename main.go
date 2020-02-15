@@ -64,6 +64,20 @@ func UpdateStatistic(msg *tgbotapi.Message, client *mongo.Client){
 
 }
 
+func MsgWithButton(bot *tgbotapi.BotAPI, chatId int64){
+  c := tgbotapi.NewMessage(chatId, "Бу!")
+
+  keyboard := tgbotapi.InlineKeyboardMarkup{}
+  var row []tgbotapi.InlineKeyboardButton
+  btn := tgbotapi.NewInlineKeyboardButtonData("button", "button")
+  row = append(row, btn)
+  keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
+  c.ReplyMarkup = keyboard
+
+  bot.Send(c)
+  fmt.Println("Кнопку в студию!")
+}
+
 func PrintStatistic(bot *tgbotapi.BotAPI, chatId int64, client *mongo.Client){
 
   collectionStatistic := client.Database("test").Collection("statistic")
@@ -100,6 +114,14 @@ func PrintStatistic(bot *tgbotapi.BotAPI, chatId int64, client *mongo.Client){
 
   fmt.Println(answer)
   msg := tgbotapi.NewMessage(chatId, answer)
+
+  keyboard := tgbotapi.InlineKeyboardMarkup{}
+  var row []tgbotapi.InlineKeyboardButton
+  btn := tgbotapi.NewInlineKeyboardButtonData("Закрыть", "close")
+  row = append(row, btn)
+  keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, row)
+  msg.ReplyMarkup = keyboard
+
   bot.Send(msg)
 
 }
@@ -129,6 +151,14 @@ func bot(){
     // цикл обработки сообщений
     for update := range updates {
 
+      if update.CallbackQuery != nil {
+        fmt.Println(update.CallbackQuery)
+	if update.CallbackQuery.Data == "close" {
+	  bot.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID))
+	}
+	continue
+      }
+
       if update.Message == nil { // ignore any non-Message Updates
         continue
       }
@@ -143,6 +173,9 @@ func bot(){
 
           bot.Send(msg)
         }
+	if strings.Contains(update.Message.Text, "кноп"){
+	  MsgWithButton(bot, update.Message.Chat.ID)
+	}
       }
 
     UpdateStatistic(update.Message, client)
