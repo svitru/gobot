@@ -167,12 +167,6 @@ func bot(){
         if strings.Contains(update.Message.Text, "стат"){
 	  PrintStatistic(bot, update.Message.Chat.ID, client)
 	}
-        if update.Message.From.ID == 533587790 {
-          msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Моя Настенька! 🤗")
-          msg.ReplyToMessageID = update.Message.MessageID
-
-          bot.Send(msg)
-        }
 	if strings.Contains(update.Message.Text, "кноп"){
 	  MsgWithButton(bot, update.Message.Chat.ID)
 	}
